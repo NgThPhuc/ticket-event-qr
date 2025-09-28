@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createStripeCheckoutSession } from "../actions/createStripeCheckoutSession";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import ReleaseTicket from "./ReleaseTicket";
@@ -52,20 +53,20 @@ export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
   const handlePurchase = async () => {
     if (!user) return;
 
-    // try {
-    //   setIsLoading(true);
-    //   const { sessionUrl } = await createStripeCheckoutSession({
-    //     eventId,
-    //   });
+    try {
+      setIsLoading(true);
+      const { sessionUrl } = await createStripeCheckoutSession({
+        eventId,
+      });
 
-    //   if (sessionUrl) {
-    //     router.push(sessionUrl);
-    //   }
-    // } catch (error) {
-    //   console.error("Error creating checkout session:", error);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+      if (sessionUrl) {
+        router.push(sessionUrl);
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!user || !queuePosition || queuePosition.status !== "offered") {
