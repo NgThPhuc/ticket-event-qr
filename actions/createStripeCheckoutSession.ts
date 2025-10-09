@@ -11,13 +11,18 @@ import { stripe } from "../lib/stripe";
 export type StripeCheckoutMetaData = {
   eventId: Id<"events">;
   userId: string;
-  waitingListId: Id<"waitingList">;
+  waitingListId?: Id<"waitingList"> | null;
+  quantity: string;
 };
 
 export async function createStripeCheckoutSession({
   eventId,
+  quantity,
+  waitingListId,
 }: {
   eventId: Id<"events">;
+  quantity: number,
+  waitingListId?: Id<"waitingList">;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
@@ -34,29 +39,21 @@ export async function createStripeCheckoutSession({
     userId,
   });
 
-  if (!queuePosition || queuePosition.status !== "offered") {
-    throw new Error("No valid ticket offer found");
-  }
+  if (!queuePosition || queuePosition.status !== "offered") throw new Error("No valid ticket offer found");
 
-  const stripeConnectId = await convex.query(
-    api.users.getUsersStripeConnectId,
-    {
-      userId: event.userId,
-    }
-  );
+  const seller = await convex.query(api.users.getUserById, { userId: event.userId });
+  const stripeConnectId = seller?.stripeConnectId;
+  if (!stripeConnectId) throw new Error("Stripe Connect ID not found for owner of the event!");
 
-  if (!stripeConnectId) {
-    throw new Error("Stripe Connect ID not found for owner of the event!");
-  }
+  if (!queuePosition.offerExpiresAt) throw new Error("Ticket offer has no expiration date");
 
-  if (!queuePosition.offerExpiresAt) {
-    throw new Error("Ticket offer has no expiration date");
-  }
+  const qty = Math.max(1, Number(quantity) || 1);
 
   const metadata: StripeCheckoutMetaData = {
     eventId,
     userId,
     waitingListId: queuePosition._id,
+    quantity: String(qty),
   };
 
   // Create Stripe Checkout Session
@@ -66,14 +63,14 @@ export async function createStripeCheckoutSession({
       line_items: [
         {
           price_data: {
-            currency: "gbp",
+            currency: "usd",
             product_data: {
               name: event.name,
               description: event.description,
             },
             unit_amount: Math.round(event.price * 100),
           },
-          quantity: 1,
+          quantity: qty,
         },
       ],
       payment_intent_data: {
@@ -90,5 +87,5 @@ export async function createStripeCheckoutSession({
     }
   );
 
-  return { sessionId: session.id, sessionUrl: session.url };
+  return { sessionId: session.id, sessionUrl: session.url! };
 }

@@ -338,8 +338,9 @@ export const purchaseTicket = mutation({
       paymentIntentId: v.string(),
       amount: v.number(),
     }),
+    quantity: v.optional(v.number()),
   },
-  handler: async (ctx, { eventId, userId, waitingListId, paymentInfo }) => {
+  handler: async (ctx, { eventId, userId, waitingListId, paymentInfo, quantity }) => {
     console.log("Starting purchaseTicket handler", {
       eventId,
       userId,
@@ -372,6 +373,8 @@ export const purchaseTicket = mutation({
       throw new Error("Waiting list entry does not belong to this user");
     }
 
+    const qty = Math.max(1, Number(quantity) || 1);
+
     // Verify event exists and is active
     const event = await ctx.db.get(eventId);
     console.log("Event details:", event);
@@ -386,33 +389,78 @@ export const purchaseTicket = mutation({
       throw new Error("Event is no longer active");
     }
 
-    try {
-      console.log("Creating ticket with payment info", paymentInfo);
-      // Create ticket with payment info
+    const now = Date.now();
+    const tickets = await ctx.db
+      .query("tickets")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect();
+
+    const purchasedCount = tickets.filter(
+      (t) =>
+        t.status === TICKET_STATUS.VALID ||
+        t.status === TICKET_STATUS.USED ||
+        t.status === TICKET_STATUS.REFUNDED ||
+        t.status === TICKET_STATUS.CANCELLED
+    ).length;
+
+    const activeOffers = await ctx.db
+      .query("waitingList")
+      .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
+      .collect()
+      .then((entries) => entries.filter((e) => (e.offerExpiresAt ?? 0) > now).length);
+
+    const availableSpots = event.totalTickets - (purchasedCount + activeOffers);
+    if (availableSpots < qty) {
+      throw new Error("Sold out or not enough tickets for requested quantity");
+    }
+
+    const perTicketAmount = Math.floor((paymentInfo.amount || 0) / qty);
+    const issuedAt = Date.now();
+
+    for (let i = 0; i < qty; i++) {
       await ctx.db.insert("tickets", {
         eventId,
         userId,
-        purchasedAt: Date.now(),
+        purchasedAt: issuedAt,
         status: TICKET_STATUS.VALID,
         paymentIntentId: paymentInfo.paymentIntentId,
-        amount: paymentInfo.amount,
+        amount: perTicketAmount,
       });
-
-      console.log("Updating waiting list status to purchased");
-      await ctx.db.patch(waitingListId, {
-        status: WAITING_LIST_STATUS.PURCHASED,
-      });
-
-      console.log("Processing queue for next person");
-      // Process queue for next person
-      // await processQueue(ctx, { eventId });
-      await ctx.runMutation(internal.waitingList.processQueue, { eventId });
-
-      console.log("Purchase ticket completed successfully");
-    } catch (error) {
-      console.error("Failed to complete ticket purchase:", error);
-      throw new Error(`Failed to complete ticket purchase: ${error}`);
     }
+
+    if (waitingListId) {
+      await ctx.db.patch(waitingListId, { status: WAITING_LIST_STATUS.PURCHASED });
+    }
+
+    return { success: true, issued: qty };
+
+    // try {
+    //   console.log("Creating ticket with payment info", paymentInfo);
+    //   // Create ticket with payment info
+    //   await ctx.db.insert("tickets", {
+    //     eventId,
+    //     userId,
+    //     purchasedAt: Date.now(),
+    //     status: TICKET_STATUS.VALID,
+    //     paymentIntentId: paymentInfo.paymentIntentId,
+    //     amount: paymentInfo.amount,
+    //   });
+
+    //   console.log("Updating waiting list status to purchased");
+    //   await ctx.db.patch(waitingListId, {
+    //     status: WAITING_LIST_STATUS.PURCHASED,
+    //   });
+
+    //   console.log("Processing queue for next person");
+    //   // Process queue for next person
+    //   // await processQueue(ctx, { eventId });
+    //   await ctx.runMutation(internal.waitingList.processQueue, { eventId });
+
+    //   console.log("Purchase ticket completed successfully");
+    // } catch (error) {
+    //   console.error("Failed to complete ticket purchase:", error);
+    //   throw new Error(`Failed to complete ticket purchase: ${error}`);
+    // }
   },
 });
 

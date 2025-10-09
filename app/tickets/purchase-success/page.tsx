@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getConvexClient } from "../../../lib/convex";
-import { api } from "../../../convex/_generated/api";
 import Ticket from "../../../components/Ticket";
+import { api } from "../../../convex/_generated/api";
+import { getConvexClient } from "../../../lib/convex";
 
 async function TicketSuccess() {
   const { userId } = await auth();

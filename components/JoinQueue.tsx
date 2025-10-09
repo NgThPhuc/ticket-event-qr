@@ -137,6 +137,25 @@ export default function JoinQueue({
             )}
           </>
         )}
+
+      {/* {queuePosition?.status === WAITING_LIST_STATUS.OFFERED &&
+        queuePosition.offerExpiresAt &&
+        queuePosition.offerExpiresAt > Date.now() && (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-green-800">
+                It&apos;s your turn! You have until{" "}
+                {new Date(queuePosition.offerExpiresAt).toLocaleString()}{" "}
+                to purchase your tickets.
+              </p>
+            </div>
+            <BuyTickets
+              eventId={eventId}
+              remaining={availability.totalTickets - availability.purchasedCount}
+              perCustomerLimit={availability.totalTickets}
+            />
+          </div>
+        )} */}
     </div>
   );
 }
