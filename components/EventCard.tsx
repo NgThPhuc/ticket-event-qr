@@ -149,15 +149,16 @@ const EventCard = ({ eventId }: { eventId: Id<"events"> }) => {
     >
       {/* Event Image */}
       {imageUrl && (
-        <div className="relative w-full h-48">
+        <div className="relative w-full aspect-[16/9]">
           <Image
             src={imageUrl}
             alt={event.name}
             fill
-            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover rounded-t-xl"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
       )}
       <div className={`p-6 ${imageUrl ? "relative" : ""}`}>
