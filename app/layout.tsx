@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import ConvexClientProvider from "../components/ConvexClientProvider";
+import Footer from "../components/Footer";
 import Header from "../components/Header";
 import SyncUserWithConvex from "../components/SyncUserWithConvex";
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({
             <Header />
             <SyncUserWithConvex />
             {children}
+            <Footer />
             <Toaster />
           </ClerkProvider>
         </ConvexClientProvider>

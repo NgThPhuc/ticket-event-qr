@@ -2,7 +2,6 @@ import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs'
 import Image from 'next/image'
 import Link from 'next/link'
 import logo from '../images/logo.png'
-import SearchBar from './SearchBar'
 
 const Header = () => {
   return (
@@ -27,8 +26,12 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Search Bar -- Full width on mobile */}
-        <div className='w-full lg:max-w-2xl'><SearchBar /></div>
+        <nav className='hidden md:flex items-center gap-8 ml-auto'>
+          <Link href="/" className='text-gray-700 hover:text-gray-900 font-medium'>Home</Link>
+          <Link href="/all-events" className='text-gray-700 hover:text-gray-900 font-medium'>Events</Link>
+          <Link href="/about" className='text-gray-700 hover:text-gray-900 font-medium'>About</Link>
+          <Link href="/contact" className='text-gray-700 hover:text-gray-900 font-medium'>Contact</Link>
+        </nav>
 
         <div className="hidden lg:block ml-auto">
           <SignedIn>
