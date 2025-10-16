@@ -120,3 +120,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide Next.js Dev Overlay (button + overlay) in DEV */
+nextjs-portal,
+#nextjs__container,
+#nextjs__container_errors,
+#nextjs-dev-overlay,
+[data-nextjs-dialog],
+[data-nextjs-toast] {
+  display: none !important;
+}
+

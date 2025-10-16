@@ -6,18 +6,22 @@ import {
   Ban,
   Banknote,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Edit,
   InfoIcon,
   Ticket,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { api } from "../convex/_generated/api";
 import { Doc } from "../convex/_generated/dataModel";
 import { Metrics } from "../convex/events";
 import { useStorageUrl } from "../lib/utils";
 import CancelEventButton from "./CancelEventButton";
 
+const ITEMS_PER_PAGE = 5;
 
 export default function SellerEventList() {
   const { user } = useUser();
@@ -25,37 +29,159 @@ export default function SellerEventList() {
     userId: user?.id ?? "",
   });
 
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [pastPage, setPastPage] = useState(1);
+
   if (!events) return null;
 
   const upcomingEvents = events.filter((e) => e.eventDate > Date.now());
   const pastEvents = events.filter((e) => e.eventDate <= Date.now());
 
+  // Calculate pagination for upcoming events
+  const totalUpcomingPages = Math.ceil(upcomingEvents.length / ITEMS_PER_PAGE);
+  const startUpcomingIndex = (upcomingPage - 1) * ITEMS_PER_PAGE;
+  const endUpcomingIndex = startUpcomingIndex + ITEMS_PER_PAGE;
+  const paginatedUpcomingEvents = upcomingEvents.slice(
+    startUpcomingIndex,
+    endUpcomingIndex
+  );
+
+  // Calculate pagination for past events
+  const totalPastPages = Math.ceil(pastEvents.length / ITEMS_PER_PAGE);
+  const startPastIndex = (pastPage - 1) * ITEMS_PER_PAGE;
+  const endPastIndex = startPastIndex + ITEMS_PER_PAGE;
+  const paginatedPastEvents = pastEvents.slice(startPastIndex, endPastIndex);
+
   return (
     <div className="mx-auto space-y-8">
       {/* Upcoming Events */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Upcoming Events
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Upcoming Events</h2>
+          {upcomingEvents.length > 0 && (
+            <span className="text-sm text-gray-500">
+              {upcomingEvents.length} total event{upcomingEvents.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-6">
-          {upcomingEvents.map((event) => (
+          {paginatedUpcomingEvents.map((event) => (
             <SellerEventCard key={event._id} event={event} />
           ))}
           {upcomingEvents.length === 0 && (
             <p className="text-gray-500">No upcoming events</p>
           )}
         </div>
+
+        {/* Pagination for Upcoming Events */}
+        {totalUpcomingPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Showing {startUpcomingIndex + 1} to{" "}
+              {Math.min(endUpcomingIndex, upcomingEvents.length)} of{" "}
+              {upcomingEvents.length} events
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUpcomingPage((p) => Math.max(1, p - 1))}
+                disabled={upcomingPage === 1}
+                aria-label="Previous page"
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalUpcomingPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setUpcomingPage(page)}
+                      className={`px-3 py-2 rounded-lg transition-colors ${page === upcomingPage
+                        ? "bg-blue-600 text-white"
+                        : "hover:bg-gray-100 text-gray-700"
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
+              <button
+                onClick={() =>
+                  setUpcomingPage((p) => Math.min(totalUpcomingPages, p + 1))
+                }
+                disabled={upcomingPage === totalUpcomingPages}
+                aria-label="Next page"
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Past Events */}
       {pastEvents.length > 0 && (
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Past Events</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Past Events</h2>
+            <span className="text-sm text-gray-500">
+              {pastEvents.length} total event{pastEvents.length !== 1 ? "s" : ""}
+            </span>
+          </div>
           <div className="grid grid-cols-1 gap-6">
-            {pastEvents.map((event) => (
+            {paginatedPastEvents.map((event) => (
               <SellerEventCard key={event._id} event={event} />
             ))}
           </div>
+
+          {/* Pagination for Past Events */}
+          {totalPastPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {startPastIndex + 1} to{" "}
+                {Math.min(endPastIndex, pastEvents.length)} of{" "}
+                {pastEvents.length} events
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPastPage((p) => Math.max(1, p - 1))}
+                  disabled={pastPage === 1}
+                  aria-label="Previous page"
+                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPastPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setPastPage(page)}
+                        className={`px-3 py-2 rounded-lg transition-colors ${page === pastPage
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-100 text-gray-700"
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+                <button
+                  onClick={() =>
+                    setPastPage((p) => Math.min(totalPastPages, p + 1))
+                  }
+                  disabled={pastPage === totalPastPages}
+                  aria-label="Next page"
+                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
