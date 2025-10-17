@@ -15,6 +15,13 @@ import { Id } from "../convex/_generated/dataModel";
 import { useStorageUrl } from "../lib/utils";
 import Spinner from "./Spinner";
 
+const stripVN = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+
 export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
   const ticket = useQuery(api.tickets.getTicketWithDetails, { ticketId });
   const user = useQuery(api.users.getUserById, {
@@ -25,6 +32,24 @@ export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
   if (!ticket || !ticket.event || !user) {
     return <Spinner />;
   }
+
+  const ticketDataQR = {
+    "TICKET_INFO": "",
+    "Ma ve": String(ticket._id),
+    "Su kien": stripVN(ticket.event.name),
+    "Ngay": new Date(ticket.event.eventDate).toLocaleDateString("vi-VN"),
+    "Gio": new Date(ticket.event.eventDate).toLocaleTimeString("vi-VN", { hour12: false }),
+    "Dia diem": stripVN(ticket.event.location ?? ""),
+    "Nguoi so huu": stripVN(user.name ?? ""),
+    "Email": user.email ?? "",
+    "Gia ve": `$${ticket.event.price.toFixed(2)}`,
+    "Trang thai": ticket.status === "valid" ? "Hop le" : stripVN(String(ticket.status)),
+    "Ngay mua": new Date(ticket.purchasedAt).toLocaleDateString("vi-VN"),
+    "": "",
+    "Ma xac thuc": String(ticket._id).slice(-8),
+  };
+
+  const qrValue = "\uFEFF" + JSON.stringify(ticketDataQR, null, 2);
 
   return (
     <div
@@ -122,10 +147,10 @@ export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
             <div
               className={`bg-gray-100 p-4 rounded-lg ${ticket.event.is_cancelled ? "opacity-50" : ""}`}
             >
-              <QRCode value={ticket._id} className="w-32 h-32" />
+              <QRCode value={qrValue} className="w-50 h-50" size={160} />
             </div>
-            <p className="mt-2 text-sm text-gray-500 break-all text-center max-w-[200px] md:max-w-full">
-              Ticket ID: {ticket._id}
+            <p className="mt-1 text-xs text-gray-400 text-center">
+              📱 Quét QR để xem thông tin vé
             </p>
           </div>
         </div>
