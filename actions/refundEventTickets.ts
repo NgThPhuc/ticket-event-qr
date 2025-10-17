@@ -29,52 +29,87 @@ export async function refundEventTickets(eventId: Id<"events">) {
     eventId,
   });
 
-  // Process refunds for each ticket
-  const results = await Promise.allSettled(
-    tickets.map(async (ticket) => {
-      try {
-        if (!ticket.paymentIntentId) {
-          throw new Error("Payment information not found");
+  if (tickets.length === 0) {
+    // No tickets to refund, just cancel the event
+    await convex.mutation(api.events.cancelEvent, { eventId });
+    return { success: true, refundedCount: 0 };
+  }
+
+  // Group tickets by payment intent ID to avoid duplicate refunds
+  const ticketsByPaymentIntent = new Map<string, typeof tickets>();
+  tickets.forEach((ticket) => {
+    if (ticket.paymentIntentId) {
+      const existing = ticketsByPaymentIntent.get(ticket.paymentIntentId) || [];
+      existing.push(ticket);
+      ticketsByPaymentIntent.set(ticket.paymentIntentId, existing);
+    }
+  });
+
+  // Process refunds for each unique payment intent
+  const refundResults = await Promise.allSettled(
+    Array.from(ticketsByPaymentIntent.entries()).map(
+      async ([paymentIntentId, relatedTickets]) => {
+        try {
+          // Issue refund through Stripe (once per payment intent)
+          await stripe.refunds.create(
+            {
+              payment_intent: paymentIntentId,
+              reason: "requested_by_customer",
+            },
+            {
+              stripeAccount: stripeConnectId,
+            }
+          );
+
+          // Update all tickets associated with this payment intent to refunded
+          await Promise.all(
+            relatedTickets.map((ticket) =>
+              convex.mutation(api.tickets.updateTicketStatus, {
+                ticketId: ticket._id,
+                status: "refunded",
+              })
+            )
+          );
+
+          return {
+            success: true,
+            paymentIntentId,
+            ticketCount: relatedTickets.length,
+          };
+        } catch (error) {
+          console.error(
+            `Failed to refund payment intent ${paymentIntentId}:`,
+            error
+          );
+          return { success: false, paymentIntentId, error };
         }
-
-        // Issue refund through Stripe
-        await stripe.refunds.create(
-          {
-            payment_intent: ticket.paymentIntentId,
-            reason: "requested_by_customer",
-          },
-          {
-            stripeAccount: stripeConnectId,
-          }
-        );
-
-        // Update ticket status to refunded
-        await convex.mutation(api.tickets.updateTicketStatus, {
-          ticketId: ticket._id,
-          status: "refunded",
-        });
-
-        return { success: true, ticketId: ticket._id };
-      } catch (error) {
-        console.error(`Failed to refund ticket ${ticket._id}:`, error);
-        return { success: false, ticketId: ticket._id, error };
       }
-    })
+    )
   );
 
   // Check if all refunds were successful
-  const allSuccessful = results.every(
-    (result) => result.status === "fulfilled" && result.value.success
+  const failedRefunds = refundResults.filter(
+    (result) => result.status === "rejected" || !result.value.success
   );
 
-  if (!allSuccessful) {
+  if (failedRefunds.length > 0) {
+    console.error("Failed refunds:", failedRefunds);
+    const failedCount = failedRefunds.length;
     throw new Error(
-      "Some refunds failed. Please check the logs and try again."
+      `Failed to refund ${failedCount} payment(s). Please check the logs and try again.`
     );
   }
 
-  // Cancel the event instead of deleting it
+  // Calculate total refunded tickets
+  const totalRefunded = refundResults.reduce((sum, result) => {
+    if (result.status === "fulfilled" && result.value.success && result.value.ticketCount) {
+      return sum + result.value.ticketCount;
+    }
+    return sum;
+  }, 0);
+
+  // Cancel the event after all refunds are successful
   await convex.mutation(api.events.cancelEvent, { eventId });
 
-  return { success: true };
+  return { success: true, refundedCount: totalRefunded };
 }

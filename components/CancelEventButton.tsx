@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Ban } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
-import { Id } from "../convex/_generated/dataModel";
-import { refundEventTickets } from "../actions/refundEventTickets";
-import { api } from "../convex/_generated/api";
+import { useState } from "react";
 import { toast } from "sonner";
+import { refundEventTickets } from "../actions/refundEventTickets";
+import { Id } from "../convex/_generated/dataModel";
 
 export default function CancelEventButton({
   eventId,
@@ -16,7 +14,6 @@ export default function CancelEventButton({
 }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const router = useRouter();
-  const cancelEvent = useMutation(api.events.cancelEvent);
 
   const handleCancel = async () => {
     if (
@@ -29,16 +26,23 @@ export default function CancelEventButton({
 
     setIsCancelling(true);
     try {
-      await refundEventTickets(eventId);
-      await cancelEvent({ eventId });
+      // refundEventTickets will handle both refunding AND cancelling the event
+      const result = await refundEventTickets(eventId);
+
+      const message = result.refundedCount > 0
+        ? `Event cancelled successfully. ${result.refundedCount} ticket(s) have been refunded.`
+        : "Event cancelled successfully.";
+
       toast.success("Event cancelled", {
-        description: "All tickets have been refunded successfully.",
+        description: message,
       });
       router.push("/seller/events");
     } catch (error) {
       console.error("Failed to cancel event:", error);
       toast.error("Error", {
-        description: "Failed to cancel event. Please try again.",
+        description: error instanceof Error
+          ? error.message
+          : "Failed to cancel event. Please try again.",
       });
     } finally {
       setIsCancelling(false);
@@ -49,7 +53,7 @@ export default function CancelEventButton({
     <button
       onClick={handleCancel}
       disabled={isCancelling}
-      className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+      className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <Ban className="w-4 h-4" />
       <span>{isCancelling ? "Processing..." : "Cancel Event"}</span>
