@@ -26,20 +26,20 @@ export async function getStripeConnectAccountStatus(
 
     return {
       isActive:
-        account.details_submitted &&
-        !account.requirements?.currently_due?.length,
+        account.details_submitted && // Đã submit thông tin
+        !account.requirements?.currently_due?.length, // Không còn yêu cầu
       requiresInformation: !!(
-        account.requirements?.currently_due?.length ||
-        account.requirements?.eventually_due?.length ||
-        account.requirements?.past_due?.length
+        account.requirements?.currently_due?.length || // Cần ngay
+        account.requirements?.eventually_due?.length || // Cần sau
+        account.requirements?.past_due?.length // Quá hạn
       ),
       requirements: {
         currently_due: account.requirements?.currently_due || [],
         eventually_due: account.requirements?.eventually_due || [],
         past_due: account.requirements?.past_due || [],
       },
-      chargesEnabled: account.charges_enabled,
-      payoutsEnabled: account.payouts_enabled,
+      chargesEnabled: account.charges_enabled, // Có thể nhận thanh toán
+      payoutsEnabled: account.payouts_enabled, // Có thể nhận payout
     };
   } catch (error) {
     console.error("Error fetching Stripe Connect account status:", error);

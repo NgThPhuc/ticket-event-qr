@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const signature = headersList.get("stripe-signature") as string;
 
   console.log("Webhook signature:", signature ? "Present" : "Missing");
-
+  // 1. Verify webhook signature (bảo mật)
   let event: Stripe.Event;
 
   try {
@@ -30,11 +30,12 @@ export async function POST(req: Request) {
   }
 
   const convex = getConvexClient();
-
+  // 2. Xử lý event "checkout.session.completed"
   if (event.type === "checkout.session.completed") {
     console.log("Processing checkout.session.completed");
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata as Partial<StripeCheckoutMetaData>;
+    // Lấy thông tin từ session
     const paymentIntentId = session.payment_intent?.toString() ?? "unknown_intent";
     const quantity = Math.max(1, Number(metadata.quantity ?? 1));
     const amountTotal = Number(session.amount_total ?? 0);
@@ -43,12 +44,12 @@ export async function POST(req: Request) {
     console.log("Payment Intend ID: ", paymentIntentId);
     console.log("Quantity: ", quantity);
     console.log("Amount Total: ", amountTotal)
-
+    // 3. Validate metadata
     if (!metadata.eventId || !metadata.userId || !metadata.waitingListId) {
       console.error("Missing required metadata");
       return new Response("Missing required metadata", { status: 400 });
     }
-
+    // 4. Gọi mutation tạo vé
     await convex.mutation(api.events.purchaseTicket, {
       eventId: metadata.eventId,
       userId: metadata.userId,

@@ -16,13 +16,13 @@ if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
 
 export async function createStripeConnectCustomer() {
-  const { userId } = await auth();
+  const { userId } = await auth(); // lấy user id từ clerk
 
   if (!userId) {
     throw new Error("Not authenticated");
   }
 
-  // Check if user already has a connect account
+  // Kiểm tra đã có account chưa
   const existingStripeConnectId = await convex.query(
     api.users.getUsersStripeConnectId,
     {
@@ -34,16 +34,17 @@ export async function createStripeConnectCustomer() {
     return { account: existingStripeConnectId };
   }
 
-  // Create new connect account
+  // Tạo Stripe Connect Express Account
   const account = await stripe.accounts.create({
-    type: "express",
+    type: "express", // Express account - Stripe quản lý UI
     capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
+      card_payments: { requested: true }, // Nhận thanh toán card
+      transfers: { requested: true }, // Nhận tiền transfer
     },
   });
 
   // Update user with stripe connect id
+  // Lưu stripeConnectId vào database
   await convex.mutation(api.users.updateOrCreateUserStripeConnectId, {
     userId,
     stripeConnectId: account.id,

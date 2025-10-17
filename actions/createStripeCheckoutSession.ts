@@ -29,18 +29,18 @@ export async function createStripeCheckoutSession({
 
   const convex = getConvexClient();
 
-  // Get event details
+  // 1. Lấy thông tin event
   const event = await convex.query(api.events.getById, { eventId });
   if (!event) throw new Error("Event not found");
 
-  // Get waiting list entry
+  // 2. Kiểm tra offer còn valid không
   const queuePosition = await convex.query(api.waitingList.getQueuePosition, {
     eventId,
     userId,
   });
 
   if (!queuePosition || queuePosition.status !== "offered") throw new Error("No valid ticket offer found");
-
+  // 3. Lấy Stripe Connect ID của seller
   const seller = await convex.query(api.users.getUserById, { userId: event.userId });
   const stripeConnectId = seller?.stripeConnectId;
   if (!stripeConnectId) throw new Error("Stripe Connect ID not found for owner of the event!");
@@ -48,7 +48,7 @@ export async function createStripeCheckoutSession({
   if (!queuePosition.offerExpiresAt) throw new Error("Ticket offer has no expiration date");
 
   const qty = Math.max(1, Number(quantity) || 1);
-
+  // 4. Chuẩn bị metadata (sẽ được gửi lại qua webhook)
   const metadata: StripeCheckoutMetaData = {
     eventId,
     userId,
@@ -56,7 +56,7 @@ export async function createStripeCheckoutSession({
     quantity: String(qty),
   };
 
-  // Create Stripe Checkout Session
+  // 5. Tạo Stripe Checkout Session
   const session = await stripe.checkout.sessions.create(
     {
       payment_method_types: ["card"],
@@ -83,7 +83,7 @@ export async function createStripeCheckoutSession({
       metadata,
     },
     {
-      stripeAccount: stripeConnectId, //stripe connect acc id for the event owner (seller)
+      stripeAccount: stripeConnectId, // CONNECT ACCOUNT của seller
     }
   );
 
