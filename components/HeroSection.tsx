@@ -75,7 +75,7 @@ export default function HeroSection() {
         </form>
 
         {/* Category Buttons */}
-        <div className="flex flex-wrap justify-center gap-3">
+        {/* <div className="flex flex-wrap justify-center gap-3">
           {categories.map((category) => (
             <button
               key={category.id}
@@ -85,7 +85,7 @@ export default function HeroSection() {
               {category.label}
             </button>
           ))}
-        </div>
+        </div> */}
       </div>
     </div>
   );
